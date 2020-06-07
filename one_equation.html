@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+
+    <title>1 Equation</title>
+
+    <!-- Bootstrap core CSS -->
+    <link href="vendor/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Custom styles for this template -->
+    <link href="css/simple-sidebar.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="vendor/dataTables.bootstrap4.min.css"/>
+    <link rel="stylesheet" href="vendor/tempusdominus-bootstrap-4.min.css"/>
+    <link href="vendor/fa/css/font-awesome.min.css" rel="stylesheet">
+    <link href="vendor/buttons.dataTables.min.css" rel="stylesheet">
+
+    <link rel="stylesheet" href="vendor/Chart.min.css">
+    
+	<link rel="stylesheet" href="vendor/katex.min.css">
+
+    <!-- The loading of KaTeX is deferred to speed up page rendering -->
+    <script src="vendor/katex.min.js"></script>
+
+    <!-- To automatically render math in text elements, include the auto-render extension: -->
+    <script src="vendor/auto-render.min.js"></script>    
+</head>
+
+<body>
+<div class="navbar navbar-default navbar-fixed-bottom w-100" style="position: absolute; bottom: 0">
+    <div class="d-flex flex-column flex-grow-1 p-1">
+		<div class="row">
+			<div class="col-8 d-flex flex-column flex-grow-1 p-1">
+				<div><br><br></div>
+				<ul id="equation_list" class="list-group" style="display: flex; flex-direction: column-reverse; ">
+				</ul>
+				<span class="form-control pl-4" id="equation_field"
+						style="font-size: 1.5em; color: black; background-color: white;"
+						></span>
+			</div>
+			<div class="col-2 d-flex flex-column flex-grow-1 p-1">
+				<div><br><br></div>
+				<ul id="operation_list" class="list-group" style="display: flex; flex-direction: column-reverse;">
+				</ul>
+				<input type="text" class="form-control" id="operation_field" style="font-size: 1.5em;">
+			</div>
+			<div class="col-1 d-flex flex-column-reverse flex-grow-1 p-1">
+				<button type="button" class="btn btn-lg" onclick="undo()"
+						style="color: white; background-color: #c2185b;  border: none; border-radius: 10%;"
+						>Undo</button>
+				<button type="button" class="btn btn-lg" onclick="apply()" 
+						style="color: white; background-color: #1565c0;  border: none; border-radius: 10%;"
+						>Apply</button>
+			</div>
+			<div class="col-1 d-flex flex-column-reverse flex-grow-1 p-1 pl-2 pr-2">
+				<div class="row justify-content-around">
+					<label for="fraction"> Fraction</label>
+					<input type="checkbox" id="fraction" checked onclick='fraction_toggle(this);'>
+				</div>			
+				<div class="row justify-content-around">
+					<label for="integer_parameters"> Integers</label>
+					<input type="checkbox" id="integer_parameters" checked onclick='integer_parameters_toggle(this);'>
+				</div>			
+				<div class="row justify-content-around">
+					<label for="simple_equation"> Simple</label>
+					<input type="checkbox" id="simple_equation" checked onclick='simple_equation_toggle(this);'>
+				</div>			
+			</div>
+		</div>
+    </div>
+</div>
+<!-- /#wrapper -->
+
+<!-- Bootstrap core JavaScript -->
+
+<script src="vendor/jquery/jquery.min.js"></script>
+<script src="vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+<script type="text/javascript" src="vendor/jquery.dataTables.min.js"></script>
+<script type="text/javascript" src="vendor/dataTables.bootstrap4.min.js"></script>
+<script src="vendor/axios.min.js"></script>
+
+
+<script src="vendor/dataTables.buttons.min.js"></script>
+<script src="vendor/buttons.flash.min.js"></script>
+<script src="vendor/jszip.min.js"></script>
+<script src="vendor/buttons.html5.min.js"></script>
+
+<script type="text/javascript" src="vendor/moment.min.js"></script>
+<script type="text/javascript" src="vendor/tempusdominus-bootstrap-4.min.js"></script>
+
+<script src="nerdamer/nerdamer.core.js"></script> <!-- assuming you've saved the file in the root of course -->
+<!-- LOAD ADD-ONS -->
+<script src="nerdamer/Algebra.js"></script>
+<script src="nerdamer/Calculus.js"></script>
+<script src="nerdamer/Solve.js"></script>
+<script src="nerdamer/Extra.js"></script> <!-- again assuming you've saved the files in root -->
+
+<script src="func_equations.js"></script>
+
+<script>
+	var equation_prototype_simple_list = ['A*x + b = c', 'A*x - b = 0', 'a = b*x + C'];
+	var equation_prototype_complex_list = ['A*x/B + c = d*x - E', 'A - B*x = C*x/D + E', 'A*x = B*x/C + D/E'];
+	var equation_simple = document.getElementById('simple_equation').checked;
+	var integer_parameters = document.getElementById('integer_parameters').checked;
+	var equation_list_nerdamer = [' (2x + 7) + (5y -3)/8 = 17'];
+	var display_type = 'fraction';
+	if(!document.getElementById('fraction').checked){display_type='decimal';}
+	var decimal_precision = 5;
+
+	var equation_prototype_list = equation_prototype_complex_list;
+	if(equation_simple){equation_prototype_list = equation_prototype_simple_list;}
+	equation_list_nerdamer[0] = reset_equation(equation_prototype_list, integer_parameters);
+
+    var apply = () => {
+    	//var equation = document.getElementById('equation_field').innerHTML;
+    	var equation = equation_list_nerdamer[equation_list_nerdamer.length - 1];
+    	var operation = document.getElementById('operation_field').value;
+    	if (operation.length === 0) return;
+    	
+    	insert_into_html_list('operation_list', operation, {'class':'list-group-item'}, latex=false);
+    	document.getElementById('operation_field').value = '';
+
+    	insert_into_html_list('equation_list', equation, {'class':'list-group-item'}, latex=true);
+		
+    	//apply transformation to equation
+    	var text_n = apply_operation(equation, operation, display_type, latex=false);
+    	equation_list_nerdamer.push(text_n);
+    	var latex_text_n = apply_operation(equation, operation, display_type, latex=true);
+    	katex.render(latex_format(latex_text_n, display_type), document.getElementById('equation_field'), {throwOnError: false});
+    	return;
+    }
+    
+    function undo(){
+    	var equation_list = document.getElementById('equation_list');
+    	var operation_list = document.getElementById('operation_list');
+    	if ((equation_list.firstChild === null) || (typeof equation_list.firstChild.innerHTML === 'undefined')){
+    		return;
+    	}
+    	//var equation = equation_list.firstChild.innerHTML;
+    	equation_list_nerdamer.pop();
+    	var equation = equation_list_nerdamer[equation_list_nerdamer.length - 1];
+    	var operation = operation_list.firstChild.innerHTML;
+    	equation_list.removeChild(equation_list.firstChild);
+    	operation_list.removeChild(operation_list.firstChild);
+    	
+    	//document.getElementById('equation_field').value = equation;
+    	katex.render(latex_format(equation, display_type), document.getElementById('equation_field'), {throwOnError: false});
+    	document.getElementById('operation_field').value = operation;
+    	return;
+    }
+    
+	text_n = equation_list_nerdamer[0];
+	var latex_text_n = apply_operation(text_n, '+0', display_type, latex=true);
+	katex.render(latex_format(latex_text_n, display_type), document.getElementById('equation_field'), {throwOnError: false});
+</script>
+
+
+</body>
+
+</html>
